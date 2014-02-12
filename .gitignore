@@ -1,8 +1,9 @@
 *.class
-
-.idea
-*.iml
+*.log
 target
+
+*.iml
+.idea
 
 # Package Files #
 *.jar
