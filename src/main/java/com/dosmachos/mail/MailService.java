@@ -1,5 +1,6 @@
 package com.dosmachos.mail;
 
+import com.dosmachos.mail.backend.MailMessenger;
 import com.dosmachos.mail.health.DatabaseHealthCheck;
 import com.dosmachos.mail.resources.MailMessagesResource;
 import com.yammer.dropwizard.Service;
@@ -20,6 +21,8 @@ public class MailService extends Service<MailServiceConfiguration> {
         environment.addResource(new MailMessagesResource());
 
         environment.addHealthCheck(new DatabaseHealthCheck());
+
+        new MailMessenger().start();
     }
 
     public static void main(String[] args) throws Exception {
