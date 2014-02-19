@@ -1,10 +1,21 @@
 package com.dosmachos.mail.resources;
 
-import com.dosmachos.mail.core.MailMessage;
+import com.dosmachos.mail.core.MailMessageDTO;
+import com.dosmachos.mail.domain.MailMessage;
+import com.dosmachos.mail.utils.ResourceHelper;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
+import com.yammer.metrics.annotation.Timed;
+import net.vz.mongodb.jackson.DBCursor;
+import net.vz.mongodb.jackson.JacksonDBCollection;
+import net.vz.mongodb.jackson.WriteResult;
+import org.bson.types.ObjectId;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.util.UUID;
+import javax.ws.rs.core.Response;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Root resource for mail messages (listing and creating).
@@ -12,41 +23,86 @@ import java.util.UUID;
 @Path("/mail/messages")
 @Produces(MediaType.APPLICATION_JSON)
 public class MailMessagesResource {
-    public MailMessagesResource() {
+    private JacksonDBCollection<MailMessage, String> collection;
+
+    public MailMessagesResource(JacksonDBCollection<MailMessage, String> mailMessages) {
+        this.collection = mailMessages;
     }
 
     @GET
-    public MailMessage[] list() {
-        return new MailMessage[]{
-                new MailMessage(UUID.randomUUID().toString(), "recipient@gmail.com", "sender@gmail.com", "Hello there"),
-                new MailMessage(UUID.randomUUID().toString(), "recipient@gmail.com", "sender@gmail.com", "Why hello")
-        };
+    public List<MailMessageDTO> list() {
+        DBCursor<MailMessage> dbCursor = collection.find();
+
+        List<MailMessageDTO> mailMessageList = new ArrayList<>();
+
+        while (dbCursor.hasNext()) {
+            MailMessage savedObject = dbCursor.next();
+            mailMessageList.add(new MailMessageDTO(savedObject));
+        }
+
+        return mailMessageList;
+
     }
 
     @POST
     @Consumes("application/x-www-form-urlencoded")
-    public MailMessage create(@FormParam("to") String to, @FormParam("from") String from, @FormParam("body") String body) {
-        // TODO - make a real one in the database
-        // TODO - maybe more appropriate to return a reference to the new message than the message itself
-        return new MailMessage(UUID.randomUUID().toString(), to, from, body);
+    @Timed
+    public MailMessageDTO create(@FormParam("subject") String subject,@FormParam("to") String to, @FormParam("from") String from, @FormParam("body") String body) {
+        MailMessage message =  new MailMessage(subject, to, from, body);
+        MailMessage savedObject = collection.insert(message).getSavedObject();
+        return new MailMessageDTO(savedObject);
     }
 
     @GET
     @Path("/{id}")
-    public MailMessage retrieve(@PathParam("id") String id) {
-        // TODO - fetch it from the database instead of mocking it
-        return new MailMessage(id, "recipient@gmail.com", "sender@gmail.com", "Hello");
+    @Timed
+    public MailMessageDTO retrieve(@PathParam("id") String id) {
+        DBCursor<MailMessage> cursor = collection.find().is("_id", new ObjectId(id));
+
+        ResourceHelper.notFoundIfNull(cursor);
+        MailMessage savedObject =  cursor.next();
+        return new MailMessageDTO(savedObject);
     }
 
     @PUT
     @Path("/{id}")
-    public void update(@PathParam("id") String id, @FormParam("to") String to, @FormParam("from") String from, @FormParam("body") String body) {
-        // TODO - update it in the database
+    @Timed
+    public Response update(@PathParam("id") String id, @FormParam("subject") String subject, @FormParam("to") String to, @FormParam("from") String from, @FormParam("body") String body) {
+        DBCursor<MailMessage> cursor = collection.find().is("_id", id);
+
+        if (cursor.hasNext()) {
+            MailMessage message =  cursor.next();
+            message.setSubject(subject);
+            message.setTo(to);
+            message.setFrom(from);
+            message.setBody(body);
+
+            ResourceHelper.notFoundIfNull(message);
+            //WriteResult<MailMessage,String> result =  collection.updateById(message.get_id(), DBUpdate.set("to", to).set("subject", subject).set("from", from).set("body", body));
+            WriteResult<MailMessage,String> result =  collection.updateById(message.get_id(), message);
+            int affectedObjects = result.getWriteResult().getN();
+            if (affectedObjects != 1) {
+                return Response.serverError().build();
+            }
+            return Response.noContent().build();
+        } else {
+            //Could not find object with this Id
+            return Response.serverError().build();
+        }
+
     }
 
     @DELETE
     @Path("/{id}")
-    public void delete(@PathParam("id") String id) {
-        // TODO - delete it in the database
+    @Timed
+    public Response delete(@PathParam("id") String id) {
+        DBObject query = new BasicDBObject("_id", id);
+        WriteResult<MailMessage,String> result = collection.remove(query);
+        int affectedObjects = result.getWriteResult().getN();
+
+        if (affectedObjects != 1) {
+            return Response.serverError().build();
+        }
+        return Response.noContent().build();
     }
 }

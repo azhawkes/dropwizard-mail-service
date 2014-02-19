@@ -1,6 +1,6 @@
 package com.dosmachos.mail.backend;
 
-import com.dosmachos.mail.core.MailMessage;
+import com.dosmachos.mail.domain.MailMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +42,9 @@ public class MailMessenger implements Runnable {
                     try {
                         passToBackendMailServer(message);
 
-                        log.info("Processed message " + message.getId());
+                        log.info("Processed message " + message.get_id());
                     } catch (Exception e) {
-                        log.warn("Unable to process message " + message.getId() + "! Leaving it in the queue.");
+                        log.warn("Unable to process message " + message.get_id() + "! Leaving it in the queue.");
                     }
                 } else {
                     log.info("MailMessenger has nothing to do! Zzzzzzzz...");
