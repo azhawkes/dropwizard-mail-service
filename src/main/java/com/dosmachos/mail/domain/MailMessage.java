@@ -1,7 +1,8 @@
 package com.dosmachos.mail.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import net.vz.mongodb.jackson.Id;
+import net.vz.mongodb.jackson.ObjectId;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
 import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.NotBlank;
 
@@ -10,8 +11,10 @@ import java.util.Date;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MailMessage {
 
-    @Id
-    private String _id;
+    @ObjectId
+    @JsonProperty("_id")
+    private String id;
+
     @NotBlank
     private String status = "new";
     @Email
@@ -37,8 +40,12 @@ public class MailMessage {
         this.body = body;
     }
 
-    public String get_id() {
-        return _id;
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getStatus() {
@@ -55,10 +62,6 @@ public class MailMessage {
 
     public void setSubject(String subject) {
         this.subject = subject;
-    }
-
-    public void set_id(String _id) {
-        this._id = _id;
     }
 
     public void setTo(String to) {

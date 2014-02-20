@@ -79,7 +79,7 @@ public class MailMessagesResource {
 
             ResourceHelper.notFoundIfNull(message);
             //WriteResult<MailMessage,String> result =  collection.updateById(message.get_id(), DBUpdate.set("to", to).set("subject", subject).set("from", from).set("body", body));
-            WriteResult<MailMessage,String> result =  collection.updateById(message.get_id(), message);
+            WriteResult<MailMessage,String> result =  collection.updateById(message.getId(), message);
             int affectedObjects = result.getWriteResult().getN();
             if (affectedObjects != 1) {
                 return Response.serverError().build();

@@ -34,11 +34,11 @@ public class MailService extends Service<MailServiceConfiguration> {
 
 
         DB db = mongo.getDB(configuration.mongodb);
-        JacksonDBCollection<MailMessage, String> mailMessages = JacksonDBCollection.wrap(db.getCollection("mailMesssages"), MailMessage.class, String.class);
+        JacksonDBCollection<MailMessage, String> mailMessages = JacksonDBCollection.wrap(db.getCollection("mailMessages"), MailMessage.class, String.class);
 
         environment.addResource(new MailMessagesResource(mailMessages));
 
-        new MailMessenger().start();
+        new MailMessenger(mailMessages).start();
     }
 
     public static void main(String[] args) throws Exception {

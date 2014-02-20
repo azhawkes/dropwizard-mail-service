@@ -24,7 +24,7 @@ public class MailMessageDTO {
     }
 
     public MailMessageDTO(MailMessage mailMessage) {
-        this.id = mailMessage.get_id();
+        this.id = mailMessage.getId();
         this.status = mailMessage.getStatus();
         this.subject = mailMessage.getSubject();
         this.to = mailMessage.getTo();
