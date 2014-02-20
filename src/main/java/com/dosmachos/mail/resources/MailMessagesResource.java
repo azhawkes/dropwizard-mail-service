@@ -96,8 +96,7 @@ public class MailMessagesResource {
     @Path("/{id}")
     @Timed
     public Response delete(@PathParam("id") String id) {
-        DBObject query = new BasicDBObject("_id", id);
-        WriteResult<MailMessage,String> result = collection.remove(query);
+        WriteResult<MailMessage, String> result = collection.removeById(id);
         int affectedObjects = result.getWriteResult().getN();
 
         if (affectedObjects != 1) {
