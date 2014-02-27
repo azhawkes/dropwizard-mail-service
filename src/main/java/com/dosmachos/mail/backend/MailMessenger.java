@@ -1,10 +1,11 @@
 package com.dosmachos.mail.backend;
 
 import com.dosmachos.mail.domain.MailMessage;
+import com.mongodb.MongoException;
 import net.vz.mongodb.jackson.DBCursor;
 import net.vz.mongodb.jackson.JacksonDBCollection;
-import net.vz.mongodb.jackson.WriteResult;
-import org.bson.types.ObjectId;
+import org.apache.commons.mail.EmailException;
+import org.apache.commons.mail.SimpleEmail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,11 +19,16 @@ public class MailMessenger implements Runnable {
     private static final long SLEEP_MS = 10000;
 
     private JacksonDBCollection<MailMessage, String> mailMessages;
+    private String smtpHost;
+    private int smtpPort;
+
     private Thread thread;
     private volatile boolean running = false;
 
-    public MailMessenger(JacksonDBCollection<MailMessage, String> mailMessages) {
+    public MailMessenger(JacksonDBCollection<MailMessage, String> mailMessages, String smtpHost, int smtpPort) {
         this.mailMessages = mailMessages;
+        this.smtpHost = smtpHost;
+        this.smtpPort = smtpPort;
     }
 
     public void start() {
@@ -42,25 +48,23 @@ public class MailMessenger implements Runnable {
 
         while (running) {
             try {
-                MailMessage message = getNextQueuedMessage();
+                DBCursor<MailMessage> cursor = mailMessages.find().is("status", "new");
 
-                log.info("Next queued message: " + message);
-
-                if (message != null) {
-                    try {
-                        passToBackendMailServer(message);
-
-                        log.info("Processed message " + message.getId());
-                    } catch (Exception e) {
-                        log.warn("Unable to process message " + message.getId() + "! Leaving it in the queue.", e);
-                    }
-
-                    Thread.sleep(SLEEP_MS);
-                } else {
+                if (!cursor.hasNext()) {
                     log.info("MailMessenger has nothing to do! Zzzzzzzz...");
-
-                    Thread.sleep(SLEEP_MS);
                 }
+
+                while (cursor.hasNext()) {
+                    MailMessage message = cursor.next();
+
+                    try {
+                        sendMessage(message);
+                    } catch (MongoException e) {
+                        log.error("Nasty database error while processing message " + message.getId() + "! Message status is [" + message.getStatus() + "].", e);
+                    }
+                }
+
+                Thread.sleep(SLEEP_MS);
             } catch (InterruptedException e) {
                 running = false;
             }
@@ -69,34 +73,33 @@ public class MailMessenger implements Runnable {
         log.info("MailMessenger is exiting.");
     }
 
-    private MailMessage getNextQueuedMessage() {
-        DBCursor<MailMessage> cursor = mailMessages.find().is("status", "new");
+    private void sendMessage(MailMessage message) throws MongoException {
+        try {
+            log.info("Preparing to send message " + message.getId());
 
-        // TODO - hold onto the cursor and reuse it?
-        if (cursor.hasNext()) {
-            return cursor.next();
-        } else {
-            return null;
+            message.setStatus("sending");
+            mailMessages.updateById(message.getId(), message);
+
+            SimpleEmail email = new SimpleEmail();
+
+            email.setHostName(smtpHost);
+            email.setSmtpPort(smtpPort);
+            email.setFrom(message.getFrom());
+            email.addTo(message.getTo());
+            email.setSubject(message.getSubject());
+            email.setMsg(message.getBody());
+            email.addHeader("X-Infusionsoft-Message-ID", message.getId());
+            email.send();
+
+            message.setStatus("sent");
+            mailMessages.updateById(message.getId(), message);
+
+            log.info("Sent message " + message.getId());
+        } catch (EmailException e) {
+            log.warn("Unable to send message " + message.getId() + "! We'll try again later.", e);
+
+            message.setStatus("new");
+            mailMessages.updateById(message.getId(), message);
         }
-    }
-
-    private void passToBackendMailServer(MailMessage message) {
-        // TODO
-        message.setStatus("processed");
-
-        WriteResult<MailMessage,String> result = mailMessages.updateById(message.getId(), message);
-
-        System.out.println("*** RESULT: " + result.getN());
-
-        DBCursor<MailMessage> processed = mailMessages.find().is("status", "processed");
-
-        if (processed.hasNext()) {
-            System.out.println("**** PROCESSED ONE!");
-        }
-
-
-//        throw new RuntimeException("there is no backend mail server yet!");
-
-        // TODO - if it is successfully queued in the back-end, change the status in our database
     }
 }

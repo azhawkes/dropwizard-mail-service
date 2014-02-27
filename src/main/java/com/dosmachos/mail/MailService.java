@@ -38,7 +38,7 @@ public class MailService extends Service<MailServiceConfiguration> {
 
         environment.addResource(new MailMessagesResource(mailMessages));
 
-        new MailMessenger(mailMessages).start();
+        new MailMessenger(mailMessages, configuration.smtpHost, configuration.smtpPort).start();
     }
 
     public static void main(String[] args) throws Exception {

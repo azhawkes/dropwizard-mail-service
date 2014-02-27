@@ -11,10 +11,6 @@ import javax.validation.constraints.Min;
  * Service configuration for our Dropwizard mail service.
  */
 public class MailServiceConfiguration extends Configuration {
-    @NotEmpty
-    @JsonProperty
-    private String foo;
-
     @JsonProperty
     @NotEmpty
     public String mongohost = "localhost";
@@ -28,8 +24,12 @@ public class MailServiceConfiguration extends Configuration {
     @NotEmpty
     public String mongodb = "mailService";
 
-    public String getFoo() {
-        return foo;
-    }
+    @JsonProperty
+    @NotEmpty
+    public String smtpHost = "localhost";
 
+    @JsonProperty
+    @Min(1)
+    @Max(65535)
+    public int smtpPort = 25;
 }
